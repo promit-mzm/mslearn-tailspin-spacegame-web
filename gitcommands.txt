@@ -1,0 +1,199 @@
+git useful commands
+
+
+Create a fork
+The first step is to fork the Space Game web project so you can work with and modify the source files.
+
+A fork is a copy of a GitHub repository. The copy exists in your account and enables you to make any changes you want without affecting the original project.
+
+Although you can propose changes to the original project, here you'll work with the Space Game web project as though it were the original project owned by Mara and her team.
+
+To fork the Space Game web project into your GitHub account:
+
+In a web browser, go to GitHub  and sign in.
+
+Go to the Space Game  web project.
+
+Select Fork:
+
+The Fork button on GitHub
+
+Follow the instructions to fork the repository into your account.
+
+Clone your fork locally
+You now have a copy of the Space Game web project in your GitHub account. Now you'll download, or clone, a copy to your computer so you can work with it.
+
+A clone, just like a fork, is a copy of a repository. When you clone a repository, you can make changes, verify they work as you expect, and then upload those changes back to GitHub. You can also synchronize your local copy with changes other authenticated users have made to GitHub's copy of your repository.
+
+To clone the Space Game web project to your computer:
+
+Go to your fork of the Space Game web project on GitHub.
+
+Select Clone or download. Then select the button next to the URL that's shown to copy the URL to your clipboard:
+
+The Clone or download button on GitHub
+
+In Visual Studio Code, go to the terminal window and run the git clone command. Replace the URL that's shown here with the contents of your clipboard:
+
+Bash
+
+Copy
+git clone https://github.com/your-name/mslearn-tailspin-spacegame-web.git
+Move to the mslearn-tailspin-spacegame-web directory. This is the root directory of your repository.
+
+Bash
+
+Copy
+cd mslearn-tailspin-spacegame-web
+Set the upstream remote
+A remote is a Git repository where team members collaborate (like a repository on GitHub).
+
+Run this git remote command to list your remotes:
+
+Bash
+
+Copy
+git remote -v
+You see that you have both fetch (download) and push (upload) access to your repository:
+
+Output
+
+Copy
+origin  https://github.com/username/mslearn-tailspin-spacegame-web.git (fetch)
+origin  https://github.com/username/mslearn-tailspin-spacegame-web.git (push)
+Origin specifies your repository on GitHub. When you fork code from another repository, it's common to name the original remote (the one you forked from) as upstream.
+
+Run this git remote add command to create a remote named upstream that points to the Microsoft repository:
+
+Bash
+
+Copy
+git remote add upstream https://github.com/MicrosoftDocs/mslearn-tailspin-spacegame-web.git
+Run git remote a second time to see the changes:
+
+Bash
+
+Copy
+git remote -v
+You see that you still have both fetch (download) and push (upload) access to your repository. You also now have fetch access from the Microsoft repository:
+
+Output
+
+Copy
+origin  https://github.com/username/mslearn-tailspin-spacegame-web.git (fetch)
+origin  https://github.com/username/mslearn-tailspin-spacegame-web.git (push)
+upstream        https://github.com/MicrosoftDocs/mslearn-tailspin-spacegame-web.git (fetch)
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+-Exercise - Create the pipeline--
+
+
+In Visual Studio Code, go to the integrated terminal.
+
+Run this git pull command to fetch the latest changes from GitHub and update your master branch.
+
+Bash
+
+Copy
+git pull origin master
+You see from the output that Git fetches a file named azure-pipelines.yml. This is the starter pipeline configuration that Azure Pipelines created for you. When you set up the pipeline, Azure Pipelines adds this file to your GitHub repository.
+
+Run this git checkout command to create a branch named build-pipeline:
+
+Bash
+
+Copy
+git checkout -b build-pipeline
+In Visual Studio Code, modify azure-pipelines.yml as you see here:
+
+yml
+
+Copy
+trigger:
+- '*'
+
+pool:
+  vmImage: 'ubuntu-16.04'
+  demands:
+  - npm
+
+variables:
+  buildConfiguration: 'Release'
+
+steps:
+- task: UseDotNet@2
+  displayName: 'Use .NET Core SDK 3.1.100'
+  inputs:
+    packageType: sdk
+    version: 3.1.100
+
+- task: Npm@1
+  displayName: 'Run npm install'
+  inputs:
+    verbose: false
+
+- script: './node_modules/.bin/node-sass Tailspin.SpaceGame.Web/wwwroot --output Tailspin.SpaceGame.Web/wwwroot'
+  displayName: 'Compile Sass assets'
+
+- task: gulp@1
+  displayName: 'Run gulp tasks'
+
+- script: 'echo "$(Build.DefinitionName), $(Build.BuildId), $(Build.BuildNumber)" > buildinfo.txt'
+  displayName: 'Write build info'
+  workingDirectory: Tailspin.SpaceGame.Web/wwwroot
+
+- task: DotNetCoreCLI@2
+  displayName: 'Restore project dependencies'
+  inputs:
+    command: 'restore'
+    projects: '**/*.csproj'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Build the project - Release'
+  inputs:
+    command: 'build'
+    arguments: '--no-restore --configuration Release'
+    projects: '**/*.csproj'
+The demands section beneath pool specifies that we need npm, the Node.js package manager, installed on the build system.
+
+Under the steps section, you see the build tasks that maps to each of the script commands that we identified earlier.
+
+Azure Pipelines provides built-in build tasks that map to many common build activities. For example, the DotNetCoreCLI@2 task maps to the dotnet command-line utility. The pipeline uses DotNetCoreCLI@2 two times: one time to restore, or install, the project's dependencies and one time to build the project.
+
+Remember that not all build activities map to a built-in task. For example, there's no built-in task that runs the node-sass utility or writes build info to a text file. To run general system commands, you use the CmdLine@2 or script task. The pipeline uses the script task because it's a common shortcut for CmdLine@2.
+
+In the build step that writes information about the build to a file, notice these elements:
+
+$(Build.DefinitionName)
+$(Build.BuildId)
+$(Build.BuildNumber)
+These elements are built-in variables that the system provides for use in your pipelines.
+
+$(Build.DefinitionName) specifies the name of the build pipeline. For example, "SpaceGame-Web-CI."
+$(Build.BuildId) is a numeric identifier for the completed build, like 115.
+$(Build.BuildNumber) is name of the completed build. You can configure the format, but by default the build number includes the current date followed by the build number for that day. An example build number is "20190329.1."
+You can also define your own variables, which you'll do soon.
+
+You might have also noticed the UseDotNet@2 task, which is the first build step. Mara remembered that her build script didn't install required build tools. Although the build agent comes with a number of .NET Core SDK versions, this task lets her easily specify the version she needs to use on the build agent.
+
+Run the following Git commands from the integrated terminal to add azure-pipelines.yml to the index, commit the change, and push the change up to GitHub. These steps are similar to steps you performed earlier.
+
+ Tip
+
+Remember to save azure-pipelines.yml before you run these Git commands.
+
+Bash
+
+Copy
+git add azure-pipelines.yml
+
+add name and email 
+
+git config --global user.email "promit1992.pm@gmail.com"
+git config --global user.name "promit-mzm"
+add login details if asked
+
+git commit -m "Add build tasks"
+git push origin build-pipeline
+This time, you push the build-pipeline branch, not the master branch, to GitHub.
+
